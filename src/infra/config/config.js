@@ -14,6 +14,7 @@ function readConfig() {
     mode,
     stateDir,
     baseUrl: process.env.CODEX_WECHAT_BASE_URL || "https://ilinkai.weixin.qq.com",
+    cdnBaseUrl: process.env.CODEX_WECHAT_CDN_BASE_URL || "https://novac2c.cdn.weixin.qq.com/c2c",
     accountId: process.env.CODEX_WECHAT_ACCOUNT_ID || "",
     allowedUserIds: readListEnv("CODEX_WECHAT_ALLOWED_USER_IDS"),
     workspaceAllowlist: readListEnv("CODEX_WECHAT_WORKSPACE_ALLOWLIST"),

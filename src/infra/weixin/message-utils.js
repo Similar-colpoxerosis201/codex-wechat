@@ -86,6 +86,9 @@ function parseCommand(text) {
   if (matchesPrefixCommand(normalized, "remove")) {
     return "remove";
   }
+  if (matchesPrefixCommand(normalized, "send")) {
+    return "send";
+  }
   if (matchesPrefixCommand(normalized, "model")) {
     return "model";
   }

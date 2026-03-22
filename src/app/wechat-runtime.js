@@ -1,10 +1,12 @@
 const crypto = require("crypto");
 const fs = require("fs");
+const path = require("path");
 
 const { SessionStore } = require("../infra/storage/session-store");
 const { CodexRpcClient } = require("../infra/codex/rpc-client");
 const codexMessageUtils = require("../infra/codex/message-utils");
 const { getUpdates, sendMessage, getConfig, sendTyping } = require("../infra/weixin/api");
+const { sendWeixinMediaFile } = require("../infra/weixin/media-send");
 const { resolveSelectedAccount } = require("../infra/weixin/account-store");
 const { loadSyncBuffer, saveSyncBuffer } = require("../infra/weixin/sync-buffer-store");
 const {
@@ -17,6 +19,7 @@ const {
   extractEffortValue,
   extractModelValue,
   extractRemoveWorkspacePath,
+  extractSendPath,
   extractSwitchThreadId,
 } = require("../shared/command-parsing");
 const {
@@ -24,6 +27,7 @@ const {
   isAbsoluteWorkspacePath,
   isWorkspaceAllowed,
   normalizeWorkspacePath,
+  pathMatchesWorkspaceRoot,
 } = require("../shared/workspace-paths");
 const {
   extractModelCatalogFromListResponse,
@@ -308,6 +312,9 @@ class WechatRuntime {
         return true;
       case "remove":
         await this.handleRemoveCommand(normalized);
+        return true;
+      case "send":
+        await this.handleSendCommand(normalized);
         return true;
       case "help":
         await this.handleHelpCommand(normalized);
@@ -681,6 +688,50 @@ class WechatRuntime {
     await this.sendReplyToNormalized(normalized, `已移除项目绑定: ${workspaceRoot}`);
   }
 
+  async handleSendCommand(normalized) {
+    const requestedPath = extractSendPath(normalized.text);
+    if (!requestedPath) {
+      await this.sendReplyToNormalized(normalized, "用法: `/codex send <相对文件路径>`");
+      return;
+    }
+
+    const workspaceContext = await this.resolveWorkspaceContext(normalized);
+    if (!workspaceContext) {
+      return;
+    }
+
+    const resolvedPath = this.resolveWorkspaceFilePath(workspaceContext.workspaceRoot, requestedPath);
+    if (!resolvedPath) {
+      await this.sendReplyToNormalized(normalized, "只允许发送当前项目目录内的文件。");
+      return;
+    }
+
+    let stats = null;
+    try {
+      stats = await fs.promises.stat(resolvedPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") {
+        await this.sendReplyToNormalized(normalized, `文件不存在: ${requestedPath}`);
+        return;
+      }
+      throw error;
+    }
+
+    if (!stats.isFile()) {
+      await this.sendReplyToNormalized(normalized, `只能发送文件，不能发送目录: ${requestedPath}`);
+      return;
+    }
+
+    await sendWeixinMediaFile({
+      filePath: resolvedPath,
+      to: normalized.senderId,
+      contextToken: normalized.contextToken || this.contextTokenByUserId.get(normalized.senderId) || "",
+      baseUrl: this.account.baseUrl,
+      token: this.account.token,
+      cdnBaseUrl: this.config.cdnBaseUrl,
+    });
+  }
+
   async handleHelpCommand(normalized) {
     await this.sendReplyToNormalized(normalized, this.buildHelpText());
   }
@@ -703,6 +754,7 @@ class WechatRuntime {
       "/codex approve",
       "/codex approve workspace",
       "/codex reject",
+      "/codex send <相对文件路径>",
       "/codex remove /绝对路径",
       "/codex help",
       "",
@@ -1003,6 +1055,21 @@ class WechatRuntime {
         },
       });
     }
+  }
+
+  resolveWorkspaceFilePath(workspaceRoot, requestedPath) {
+    const normalizedWorkspaceRoot = normalizeWorkspacePath(workspaceRoot);
+    const rawRequestedPath = String(requestedPath || "").trim();
+    if (!normalizedWorkspaceRoot || !rawRequestedPath) {
+      return "";
+    }
+
+    const candidatePath = path.resolve(normalizedWorkspaceRoot, rawRequestedPath);
+    const normalizedCandidatePath = normalizeWorkspacePath(candidatePath);
+    if (!pathMatchesWorkspaceRoot(normalizedCandidatePath, normalizedWorkspaceRoot)) {
+      return "";
+    }
+    return candidatePath;
   }
 
   async startTypingForThread(threadId, normalized) {
