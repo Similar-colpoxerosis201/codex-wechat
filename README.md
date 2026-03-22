@@ -102,4 +102,4 @@ node ./bin/codex-wechat.js start
 - 微信出站默认把 Markdown 压成纯文本后发送。
 
 
-** Code by GPT-5.4 **
+**Code by GPT-5.4**
