@@ -18,6 +18,24 @@ function resolveAccountPath(config, accountId) {
   return path.join(config.accountsDir, `${normalizeAccountId(accountId)}.json`);
 }
 
+function deleteWeixinAccount(config, accountId) {
+  const normalizedAccountId = normalizeAccountId(accountId);
+  if (!normalizedAccountId) {
+    return false;
+  }
+
+  try {
+    const filePath = resolveAccountPath(config, normalizedAccountId);
+    if (!fs.existsSync(filePath)) {
+      return false;
+    }
+    fs.unlinkSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function saveWeixinAccount(config, rawAccountId, update) {
   ensureAccountsDir(config);
   const accountId = normalizeAccountId(rawAccountId);
@@ -69,7 +87,11 @@ function listWeixinAccounts(config) {
   ensureAccountsDir(config);
   const files = fs.readdirSync(config.accountsDir, { withFileTypes: true });
   return files
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .filter((entry) => (
+      entry.isFile()
+      && entry.name.endsWith(".json")
+      && !entry.name.endsWith(".context-tokens.json")
+    ))
     .map((entry) => loadWeixinAccount(config, entry.name.slice(0, -5)))
     .filter(Boolean)
     .sort((left, right) => String(right.savedAt || "").localeCompare(String(left.savedAt || "")));
@@ -102,9 +124,11 @@ function resolveSelectedAccount(config) {
 }
 
 module.exports = {
+  deleteWeixinAccount,
   listWeixinAccounts,
   loadWeixinAccount,
   normalizeAccountId,
+  resolveAccountPath,
   resolveSelectedAccount,
   saveWeixinAccount,
 };

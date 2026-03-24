@@ -29,7 +29,19 @@ function saveSyncBuffer(config, accountId, buffer) {
   fs.writeFileSync(filePath, String(buffer || ""), "utf8");
 }
 
+function clearSyncBuffer(config, accountId) {
+  try {
+    const filePath = resolveSyncBufferPath(config, accountId);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch {
+    // best effort
+  }
+}
+
 module.exports = {
+  clearSyncBuffer,
   loadSyncBuffer,
   resolveSyncBufferPath,
   saveSyncBuffer,

@@ -1,6 +1,13 @@
 const qrcodeTerminal = require("qrcode-terminal");
 
-const { saveWeixinAccount } = require("./account-store");
+const {
+  deleteWeixinAccount,
+  listWeixinAccounts,
+  saveWeixinAccount,
+} = require("./account-store");
+const { clearPersistedContextTokens } = require("./context-token-store");
+const { redactSensitiveText } = require("./redact");
+const { clearSyncBuffer } = require("./sync-buffer-store");
 
 const ACTIVE_LOGIN_TTL_MS = 5 * 60_000;
 const QR_LONG_POLL_TIMEOUT_MS = 35_000;
@@ -16,7 +23,7 @@ async function fetchQrCode(apiBaseUrl, botType) {
   const response = await fetch(url.toString());
   if (!response.ok) {
     const body = await response.text().catch(() => "(unreadable)");
-    throw new Error(`二维码获取失败: ${response.status} ${response.statusText} ${body}`);
+    throw new Error(`二维码获取失败: ${response.status} ${response.statusText} ${redactSensitiveText(body)}`);
   }
   return response.json();
 }
@@ -36,7 +43,7 @@ async function pollQrStatus(apiBaseUrl, qrcode) {
     clearTimeout(timer);
     const rawText = await response.text();
     if (!response.ok) {
-      throw new Error(`二维码状态轮询失败: ${response.status} ${response.statusText} ${rawText}`);
+      throw new Error(`二维码状态轮询失败: ${response.status} ${response.statusText} ${redactSensitiveText(rawText)}`);
     }
     return JSON.parse(rawText);
   } catch (error) {
@@ -51,9 +58,33 @@ async function pollQrStatus(apiBaseUrl, qrcode) {
 function printQrCode(url) {
   try {
     qrcodeTerminal.generate(url, { small: true });
+    console.log("如果二维码未能成功展示，请用浏览器打开以下链接扫码：");
+    console.log(url);
   } catch {
     console.log(url);
   }
+}
+
+function cleanupStaleAccountsForUserId(config, activeAccount) {
+  const activeUserId = typeof activeAccount?.userId === "string" ? activeAccount.userId.trim() : "";
+  if (!activeUserId) {
+    return [];
+  }
+
+  const staleAccounts = listWeixinAccounts(config).filter((account) => (
+    account.accountId !== activeAccount.accountId
+    && typeof account.userId === "string"
+    && account.userId.trim() === activeUserId
+  ));
+
+  for (const staleAccount of staleAccounts) {
+    deleteWeixinAccount(config, staleAccount.accountId);
+    clearSyncBuffer(config, staleAccount.accountId);
+    clearPersistedContextTokens(config, staleAccount.accountId);
+    console.log(`[codex-wechat] removed stale account ${staleAccount.accountId} for userId ${activeUserId}`);
+  }
+
+  return staleAccounts;
 }
 
 async function waitForWeixinLogin({ apiBaseUrl, botType, timeoutMs }) {
@@ -128,6 +159,7 @@ async function runLoginFlow(config) {
     timeoutMs: 480_000,
   });
   const account = saveWeixinAccount(config, result.accountId, result);
+  cleanupStaleAccountsForUserId(config, account);
   console.log("\n✅ 与微信连接成功！");
   console.log(`accountId: ${account.accountId}`);
   console.log(`userId: ${account.userId || "(unknown)"}`);

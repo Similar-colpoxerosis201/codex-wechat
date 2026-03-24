@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
+const { redactSensitiveText } = require("./redact");
+
 function readChannelVersion() {
   try {
     const pkgPath = path.resolve(__dirname, "../../../package.json");
@@ -60,7 +62,7 @@ async function apiFetch(params) {
     clearTimeout(timer);
     const rawText = await response.text();
     if (!response.ok) {
-      throw new Error(`${params.label} ${response.status}: ${rawText}`);
+      throw new Error(`${params.label} ${response.status}: ${redactSensitiveText(rawText)}`);
     }
     return rawText;
   } catch (error) {

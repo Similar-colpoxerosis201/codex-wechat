@@ -8,6 +8,10 @@ const codexMessageUtils = require("../infra/codex/message-utils");
 const { getUpdates, sendMessage, getConfig, sendTyping } = require("../infra/weixin/api");
 const { sendWeixinMediaFile } = require("../infra/weixin/media-send");
 const { resolveSelectedAccount } = require("../infra/weixin/account-store");
+const {
+  loadPersistedContextTokens,
+  persistContextToken,
+} = require("../infra/weixin/context-token-store");
 const { loadSyncBuffer, saveSyncBuffer } = require("../infra/weixin/sync-buffer-store");
 const {
   chunkReplyText,
@@ -88,6 +92,7 @@ class WechatRuntime {
   async start() {
     this.account = resolveSelectedAccount(this.config);
     this.validateConfig();
+    this.restorePersistedContextTokens();
     await this.codex.connect();
     await this.codex.initialize();
     await this.refreshAvailableModelCatalogAtStartup();
@@ -108,6 +113,29 @@ class WechatRuntime {
         throw new Error("CODEX_WECHAT_DEFAULT_WORKSPACE 不在允许绑定的白名单中");
       }
     }
+  }
+
+  restorePersistedContextTokens() {
+    const persistedTokens = loadPersistedContextTokens(this.config, this.account.accountId);
+    let restoredCount = 0;
+    for (const [userId, token] of Object.entries(persistedTokens)) {
+      this.contextTokenByUserId.set(userId, token);
+      restoredCount += 1;
+    }
+    if (restoredCount > 0) {
+      console.log(`[codex-wechat] restored ${restoredCount} persisted context token(s)`);
+    }
+  }
+
+  rememberContextToken(userId, contextToken) {
+    const normalizedUserId = typeof userId === "string" ? userId.trim() : "";
+    const normalizedToken = typeof contextToken === "string" ? contextToken.trim() : "";
+    if (!normalizedUserId || !normalizedToken || !this.account?.accountId) {
+      return;
+    }
+
+    this.contextTokenByUserId.set(normalizedUserId, normalizedToken);
+    persistContextToken(this.config, this.account.accountId, normalizedUserId, normalizedToken);
   }
 
   async refreshAvailableModelCatalogAtStartup() {
@@ -216,7 +244,7 @@ class WechatRuntime {
     const senderId = typeof message?.from_user_id === "string" ? message.from_user_id.trim() : "";
     const contextToken = typeof message?.context_token === "string" ? message.context_token.trim() : "";
     if (senderId && contextToken) {
-      this.contextTokenByUserId.set(senderId, contextToken);
+      this.rememberContextToken(senderId, contextToken);
     }
 
     const normalized = normalizeWeixinIncomingMessage(message, this.config, this.account.accountId);
