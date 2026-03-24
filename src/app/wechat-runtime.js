@@ -435,7 +435,7 @@ class WechatRuntime {
     this.sessionStore.clearThreadIdForWorkspace(bindingKey, workspaceRoot);
     await this.sendReplyToNormalized(
       normalized,
-      `已切换到新线程草稿。\n\nworkspace: ${workspaceRoot}\n下一条普通消息会在新线程中开始。`
+      `已切换到新会话，\n\nworkspace: ${workspaceRoot}\n。`
     );
   }
 
@@ -482,7 +482,7 @@ class WechatRuntime {
     }
     const { bindingKey, workspaceRoot } = workspaceContext;
     if (this.sessionStore.hasPendingNewThreadForWorkspace(bindingKey, workspaceRoot)) {
-      await this.sendReplyToNormalized(normalized, "当前是新线程草稿，还没有历史消息。先发送一条普通消息开始。");
+      await this.sendReplyToNormalized(normalized, "当前是新会话，还没有历史消息。先发送一条普通消息开始。");
       return;
     }
     const { threads, threadId } = await this.resolveWorkspaceThreadState({
