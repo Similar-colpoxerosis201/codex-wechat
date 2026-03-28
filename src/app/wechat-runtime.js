@@ -6,6 +6,7 @@ const { SessionStore } = require("../infra/storage/session-store");
 const { CodexRpcClient } = require("../infra/codex/rpc-client");
 const codexMessageUtils = require("../infra/codex/message-utils");
 const { getUpdates, sendMessage, getConfig, sendTyping } = require("../infra/weixin/api");
+const { persistIncomingWeixinAttachments } = require("../infra/weixin/media-receive");
 const { sendWeixinMediaFile } = require("../infra/weixin/media-send");
 const { resolveSelectedAccount } = require("../infra/weixin/account-store");
 const {
@@ -268,26 +269,31 @@ class WechatRuntime {
       }
 
       const { bindingKey, workspaceRoot } = workspaceContext;
+      const preparedNormalized = await this.prepareIncomingMessageForCodex(normalized, workspaceRoot);
+      if (!preparedNormalized) {
+        return;
+      }
+
       const { threadId } = await this.resolveWorkspaceThreadState({
         bindingKey,
         workspaceRoot,
-        normalized,
+        normalized: preparedNormalized,
         autoSelectThread: true,
       });
 
       if (threadId) {
-        this.pendingChatContextByThreadId.set(threadId, normalized);
+        this.pendingChatContextByThreadId.set(threadId, preparedNormalized);
       }
       const resolvedThreadId = await this.ensureThreadAndSendMessage({
         bindingKey,
         workspaceRoot,
-        normalized,
+        normalized: preparedNormalized,
         threadId,
       });
-      this.pendingChatContextByThreadId.set(resolvedThreadId, normalized);
+      this.pendingChatContextByThreadId.set(resolvedThreadId, preparedNormalized);
       this.bindingKeyByThreadId.set(resolvedThreadId, bindingKey);
       this.workspaceRootByThreadId.set(resolvedThreadId, workspaceRoot);
-      await this.startTypingForThread(resolvedThreadId, normalized);
+      await this.startTypingForThread(resolvedThreadId, preparedNormalized);
     } catch (error) {
       await this.sendReplyToUser(
         normalized.senderId,
@@ -809,6 +815,49 @@ class WechatRuntime {
       return null;
     }
     return { bindingKey, workspaceRoot };
+  }
+
+  async prepareIncomingMessageForCodex(normalized, workspaceRoot) {
+    const attachments = Array.isArray(normalized.attachments) ? normalized.attachments : [];
+    if (!attachments.length) {
+      return normalized;
+    }
+
+    const persisted = await persistIncomingWeixinAttachments({
+      attachments,
+      workspaceRoot,
+      cdnBaseUrl: this.config.cdnBaseUrl,
+      messageId: normalized.messageId,
+      receivedAt: normalized.receivedAt,
+    });
+    if (
+      !persisted.saved.length
+      && persisted.failed.length
+      && !String(normalized.text || "").trim()
+    ) {
+      await this.sendReplyToNormalized(
+        normalized,
+        `Attachment transfer failed: ${persisted.failed.map((item) => item.reason).join("; ")}`
+      );
+      return null;
+    }
+
+    const text = buildCodexInboundText(normalized.text, persisted);
+    if (!text) {
+      await this.sendReplyToNormalized(
+        normalized,
+        `Attachment transfer failed: ${persisted.failed.map((item) => item.reason).join("; ")}`
+      );
+      return null;
+    }
+
+    return {
+      ...normalized,
+      originalText: normalized.text,
+      text,
+      attachments: persisted.saved,
+      attachmentFailures: persisted.failed,
+    };
   }
 
   getBindingContext(normalized) {
@@ -1366,6 +1415,44 @@ function isNoRolloutFoundError(error) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildCodexInboundText(originalText, persisted) {
+  const text = String(originalText || "").trim();
+  const saved = Array.isArray(persisted?.saved) ? persisted.saved : [];
+  const failed = Array.isArray(persisted?.failed) ? persisted.failed : [];
+  const lines = [];
+
+  if (text) {
+    lines.push(text);
+  }
+
+  if (saved.length) {
+    if (lines.length) {
+      lines.push("");
+    }
+    lines.push(text
+      ? "WeChat attachment(s) saved into the current workspace:"
+      : "User sent WeChat attachment(s). They were saved into the current workspace:");
+    for (const item of saved) {
+      const suffix = item.sourceFileName ? ` (original: ${item.sourceFileName})` : "";
+      lines.push(`- [${item.kind}] ${item.relativePath}${suffix}`);
+    }
+    lines.push("Open the saved workspace path(s) when you need to inspect the attachment contents.");
+  }
+
+  if (failed.length) {
+    if (lines.length) {
+      lines.push("");
+    }
+    lines.push("Attachment transfer issue(s):");
+    for (const item of failed) {
+      const label = item.sourceFileName || item.kind || "attachment";
+      lines.push(`- ${label}: ${item.reason}`);
+    }
+  }
+
+  return lines.join("\n").trim();
 }
 
 module.exports = { WechatRuntime };
